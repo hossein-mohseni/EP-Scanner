@@ -5,7 +5,8 @@ from colored import fg, attr
 import os
 import socket
 import subprocess
-import requests
+import httpx
+import psutil
 from tqdm import tqdm
 import sys
 import multiprocessing
@@ -23,7 +24,7 @@ def ip_range_to_list(ip_range):
         ip_list.append(str(ip))
     return ip_list
 
-async def ping_ip(semaphore, ip, num_pings=3):
+async def ping_ip(semaphore, ip, num_pings=4):
     async with semaphore:
         ping_times = []
         for _ in range(num_pings):
@@ -51,30 +52,26 @@ async def resolve_domain(domain):
 def clear_console():
     if os.name == 'nt':
         os.system('cls')
-    # else:
-    #     os.system('clear')
 
-def get_public_ip(proxy=None):
+async def get_public_ip(proxy=None):
     url = "https://api.ipify.org/?format=json"
-    try:
-        if proxy:
-            response = requests.get(url, proxies={"http": proxy, "https": proxy}, timeout=10)
-        else:
-            response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        return data.get("ip")
-    except requests.RequestException as e:
-        return None
+    async with httpx.AsyncClient(proxies=proxy, timeout=10.0, http2=True) as client:
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("ip")
+        except httpx.RequestError:
+            return None
 
-def run_warp_plus(ip):
+def run_warp_plus(ip, port):
     if getattr(sys, 'frozen', False):
         datadir = os.path.dirname(sys.executable)
     else:
         datadir = os.path.dirname(__file__)
     warp = os.path.join(datadir, "warp-plus.exe")
     os.chdir(datadir)
-    cmd = [warp, "-e", f"{ip}:2408", "-b", "127.0.0.1:8086", "--gool", "-4"]
+    cmd = [warp, "-e", f"{ip}:2408", "-b", f"127.0.0.1:{port}", "--gool", "-4"]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     if process.stdout:
@@ -86,14 +83,27 @@ def run_warp_plus(ip):
             process.kill()
     return None
 
-async def test_warp_plus(i, original_ip, ip, executor):
+def terminate_process(process):
+    if process is not None:
+        try:
+            ps_process = psutil.Process(process.pid)
+            ps_process.terminate()
+            try:
+                ps_process.wait(timeout=3)
+            except psutil.TimeoutExpired:
+                ps_process.kill()
+        except psutil.NoSuchProcess:
+            pass
+
+async def test_warp_plus(i, original_ip, ip, port, executor):
     loop = asyncio.get_event_loop()
     process = None
+    start_time = time.time()
     try:
-        process = await asyncio.wait_for(loop.run_in_executor(executor, run_warp_plus, ip), timeout=20)
+        process = await asyncio.wait_for(loop.run_in_executor(executor, run_warp_plus, ip, port), timeout=12)
         if process:
             try:
-                new_ip = await asyncio.wait_for(loop.run_in_executor(None, get_public_ip, "http://127.0.0.1:8086"), timeout=10)
+                new_ip = await asyncio.wait_for(get_public_ip(f"http://127.0.0.1:{port}"), timeout=10)
             except asyncio.TimeoutError:
                 new_ip = None
 
@@ -121,10 +131,12 @@ async def test_warp_plus(i, original_ip, ip, executor):
         if process and process.poll() is None:
             process.terminate()
             process.communicate()
-    return result, success
+    finally:
+        terminate_process(process)
+    return result, success, time.time() - start_time
 
 async def main():
-    original_ip = get_public_ip()
+    original_ip = await get_public_ip()
     ip_ranges = await read_ip_ranges()
     cpu_count = multiprocessing.cpu_count()
     semaphore_size = cpu_count * 10
@@ -144,7 +156,7 @@ async def main():
             tasks.append(ping_ip(semaphore, ip))
 
         results = []
-        with tqdm(total=len(tasks), desc="Scanning", unit="ip", bar_format="{l_bar}{bar}| Remaining: {remaining}") as pbar:
+        with tqdm(total=len(tasks), desc="Scanning", unit="ip", bar_format="{l_bar}{bar}|") as pbar:
             for f in asyncio.as_completed(tasks):
                 result = await f
                 results.append(result)
@@ -166,24 +178,52 @@ async def main():
                 else:
                     print(fg(15) + f"[{count}] " + fg(15) + "- " + fg(56) + "IP: " + fg(163) + f"{ip}" + fg(15) + " | " + fg(56) + "Ping: " + fg(160) + f"{avg_ping_time:.2f}ms" + attr(0))
 
-        print(f"\n{fg(70)}Testing ON Warp-plus...{attr(0)}\n")
+        sys.stdout.write(f"\n{fg(70)}Testing ON Warp-plus... [15s]{attr(0)}")
+        sys.stdout.flush()
 
         loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor(max_workers=1) as executor:
+        with ThreadPoolExecutor(max_workers=5) as executor:
             all_failed = True
-            for i, (ip, _) in enumerate(top_5):
-                start_time = time.time()
-                result, success = await test_warp_plus(i, original_ip, ip, executor)
-                end_time = time.time()
-                print(result)
+            test_tasks = [
+                test_warp_plus(i, original_ip, ip, 8086 + i, executor)
+                for i, (ip, ping_time) in enumerate(top_5)
+            ]
+
+            countdown_task = asyncio.create_task(countdown(15))
+
+            test_results = await asyncio.gather(*test_tasks)
+            await countdown_task
+            print("\r" + " " * 100 + "\r" + fg(70) + "Warp-plus Test [Done]\n" + attr(0))
+            for result, success, duration in test_results:
+                print(result + f" | Duration: {duration:.2f}s")
                 if success:
                     all_failed = False
+            os.system("taskkill /f /im warp-plus.exe >nul 2>&1")
 
             if not all_failed:
+                best_result = min(test_results, key=lambda x: x[2])
+                best_result_str = best_result[0]
+                best_ip = str(best_result_str).split("IP: ")[1].split(":")[0].replace("\r", "").replace("\n", "").replace(" ", "").replace(fg(163), "").replace(attr(0), "")
+                for ip, ping in top_5:
+                    if str(ip).replace("\r", "").replace("\n", "").replace(" ", "").replace(fg(163), "").replace(attr(0), "") == best_ip:
+                        best_ping = ping
+                        best_duration = best_result[2]
+                        print(fg(56) + f"\nBest IP: {fg(163)}{best_ip}:2408{attr(0)} | Duration: {best_duration:.2f}s | " + fg(56) + "Ping: " + fg(70) +  f"{best_ping:.2f}ms" + attr(0))
+                        break
                 break
+
+        await asyncio.sleep(1)
 
     print(f"\n{fg(70)}Scanning Completed!{attr(0)}\n")
     input("Press Enter to exit...")
+
+async def countdown(seconds):
+    for remaining in range(seconds, 0, -1):
+        sys.stdout.write(f"\r{fg(70)}Testing ON Warp-plus... [{remaining}s] {attr(0)}")
+        sys.stdout.flush()
+        await asyncio.sleep(1)
+    sys.stdout.write("\r")
+    sys.stdout.flush()
 
 if __name__ == "__main__":
     clear_console()
