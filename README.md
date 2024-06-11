@@ -8,8 +8,9 @@
 - **بررسی اتصال اندپوینت‌ها**: این نرم افزار بعد از اسکن اندپوینت‌ ها را با استفاده از warp-plus بررسی میکند.
 - **کد سریع و بهینه**: استفاده از تکنیک‌های پیشرفته برای افزایش سرعت اسکن.(asyncio,aioping,multiprocessing,ThreadPoolExecutor)
 
-![image](https://github.com/hossein-mohseni/EP-Scanner/assets/27780287/4d395567-d7fa-41d5-9c13-dd39f93a8374)
-![image](https://github.com/hossein-mohseni/EP-Scanner/assets/27780287/624d54d0-c3e2-45e2-a05a-e6dc44645440)
+![image](https://github.com/hossein-mohseni/EP-Scanner/assets/27780287/8047295f-418a-4e10-9bca-4534f36c0e92)
+![image](https://github.com/hossein-mohseni/EP-Scanner/assets/27780287/e2af49f4-7ddd-475f-817f-7d716928d38e)
+
 
 
 
@@ -17,7 +18,7 @@
 ## نحوه استفاده 🛠️
 
 1. **اجرای برنامه**:
-   - فایل فشرده نرم افزار را از [این لینک](https://github.com/hossein-mohseni/EP-Scanner/releases/download/v0.1.0-alpha/EPscanner.zip) دانلود و استخراج کنید سپس `EPscanner.exe` را اجرا کنید.
+   - فایل فشرده نرم افزار را از [این لینک](https://github.com/hossein-mohseni/EP-Scanner/releases/download/v0.2.0/EPscanner.zip) دانلود و استخراج کنید سپس `EPscanner.exe` را اجرا کنید.
 
 2. **مشاهده نتایج**:
    - ابزار به صورت خودکار اندپوینت‌ها را اسکن می‌کند و نتایج را نمایش می‌دهد.
