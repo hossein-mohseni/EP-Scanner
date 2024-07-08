@@ -8,9 +8,8 @@
 - **بررسی اتصال اندپوینت‌ها**: این نرم افزار بعد از اسکن اندپوینت‌ ها را با استفاده از warp-plus بررسی میکند.
 - **کد سریع و بهینه**: استفاده از تکنیک‌های پیشرفته برای افزایش سرعت اسکن.(asyncio,aioping,multiprocessing,ThreadPoolExecutor)
 
-![image](https://github.com/hossein-mohseni/EP-Scanner/assets/27780287/8047295f-418a-4e10-9bca-4534f36c0e92)
-![image](https://github.com/hossein-mohseni/EP-Scanner/assets/27780287/e2af49f4-7ddd-475f-817f-7d716928d38e)
-
+![image](https://github.com/hossein-mohseni/EP-Scanner/assets/27780287/420a36f6-9f64-4ab0-a145-500e9c4e8271)
+![image](https://github.com/hossein-mohseni/EP-Scanner/assets/27780287/a6af9c65-2104-4618-b99c-36d5d3bd6290)
 
 
 
