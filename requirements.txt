@@ -1,0 +1,6 @@
+colored
+httpx
+psutil
+pandas
+tqdm
+pyperclip
