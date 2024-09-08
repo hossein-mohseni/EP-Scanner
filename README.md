@@ -12,6 +12,12 @@
 ![image](https://github.com/user-attachments/assets/1070b542-639e-4f88-9f87-45acc24cfe51)
 ![image](https://github.com/hossein-mohseni/EP-Scanner/assets/27780287/a6af9c65-2104-4618-b99c-36d5d3bd6290)
 
+---
+### Speed Test Ping (Using Method 4)
+
+![image](https://github.com/user-attachments/assets/e00306df-e799-4277-add2-bc26af8757fd)
+
+
 
 
 
